@@ -6,4 +6,6 @@ In this game, you will be able to play as a snake wandering the confines of a sm
 You will find in this room some letters, which you will need to create a magical word.
 If you manage to complete the word, congratulations, you win!
 
+There are also boosters with different effects to help you in your journey.
+
 However, be careful of crashing into the walls or into yourself (the snake can feel pain, too)...
