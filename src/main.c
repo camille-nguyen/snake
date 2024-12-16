@@ -81,7 +81,7 @@ void MoveSnake(Snake *snake) {
 
 // Initialize the word for the current game
 void InitWordGame() {
-    int randomIndex = rand() % 3;
+    int randomIndex = rand() % (sizeof(wordList)/sizeof(wordList[0]));
     strcpy(currentWord, wordList[randomIndex]);
     currentWordLength = strlen(currentWord);
     for (int i = 0; i < currentWordLength; i++) {
@@ -168,6 +168,9 @@ void HandleLetterCollision(Snake *snake, Letter *letter) {
             extraLives = 0;
         }
     }
+
+    snake->length += 1; 
+    snake->body = (Vector2 *)realloc(snake->body, snake->length * sizeof(Vector2));
 
     // Generate new letters
     GenerateLetterChoices();
@@ -364,7 +367,7 @@ int main(void) {
     InitSnake(&snake, mapWidth, mapHeight);
 
     Booster currentBooster;
-    InitBooster(&currentBooster, 2);
+    InitBooster(&currentBooster, rand() % 3);
     float boosterSpawnTimer = 0.0f; // this will be used to spawn new boosters after 10 seconds (everytime player eats one)
 
     // game start
@@ -452,7 +455,7 @@ int main(void) {
 
         // Spawn a new booster if timer exceeds the respawn time
         if (!currentBooster.isActive && boosterSpawnTimer >= BOOSTER_RESPAWN_TIME) {
-            InitBooster(&currentBooster, rand() % 2); // Randomly choose between types 0 and 1
+            InitBooster(&currentBooster, rand() % 3); // Randomly choose between types 0 and 1
             boosterSpawnTimer = 0.0f; // Reset timer
         }
 
