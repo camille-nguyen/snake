@@ -11,7 +11,9 @@ There are also boosters with different effects to help you in your journey.
 However, be careful of crashing into the walls or into yourself (the snake can feel pain, too)...
 
 <h2>How to run this game:</h2>
+<pre>
 From the root folder:
 $ cd build
 $ cmake ..
 $ make
+</pre>
