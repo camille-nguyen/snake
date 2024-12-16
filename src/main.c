@@ -1,8 +1,8 @@
 #include "raylib.h"
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
 
 #define MIN_SIZE 5
 #define MAX_SIZE 20
@@ -25,7 +25,7 @@ float currentSpeed = 0.5f;  // Current movement interval
 
 int extraLives = 0;  // Track the player's extra lives
 
-// Hanged man related
+// Hanged man letter variables
 const char *wordList[] = {"ccu", "pineapple", "taiwan"};
 char currentWord[20];      // Current word to guess
 char guessedWord[20];      // User's progress on the word
@@ -39,18 +39,17 @@ typedef struct Snake {
     Vector2 direction;
 } Snake;
 
-typedef struct Letter {
-    Vector2 position;
-    char value;
-} Letter;
-
-Letter letter1, letter2;
-
 typedef struct Booster {
     Vector2 position;
     bool isActive;
     int type;          // (0 = speed, 1 = size reducer, 2 = extra life)
 } Booster;
+
+typedef struct Letter {
+    Vector2 position;
+    char value;
+} Letter;
+Letter letter1, letter2;
 
 /* ------------------------- INIT ------------------------- */
 
@@ -69,6 +68,18 @@ void InitBooster(Booster *booster, int type) {
     booster->type = type;
 }
 
+void MoveSnake(Snake *snake) {
+    // Shift snake's body
+    for (int i = snake->length - 1; i > 0; i--) {
+        snake->body[i] = snake->body[i - 1];
+    }
+
+    // Move the head
+    snake->body[0].x += snake->direction.x;
+    snake->body[0].y += snake->direction.y;
+}
+
+// Initialize the word for the current game
 void InitWordGame() {
     int randomIndex = rand() % 3;
     strcpy(currentWord, wordList[randomIndex]);
@@ -103,17 +114,6 @@ void GenerateLetterChoices() {
     letter2.value = letterChoices[1];
 }
 
-void MoveSnake(Snake *snake) {
-    // Shift snake's body
-    for (int i = snake->length - 1; i > 0; i--) {
-        snake->body[i] = snake->body[i - 1];
-    }
-
-    // Move the head
-    snake->body[0].x += snake->direction.x;
-    snake->body[0].y += snake->direction.y;
-}
-
 /* ------------------------- COLLISIONS HANDLING (Food or booster) -------------------------*/
 
 int CheckCollision(Snake *snake) {
@@ -133,6 +133,7 @@ int CheckCollision(Snake *snake) {
     return 0;
 }
 
+// Check if the snake collides with a letter
 int CheckLetterCollision(Snake *snake, Letter *letter) {
     return (snake->body[0].x == letter->position.x && snake->body[0].y == letter->position.y);
 }
@@ -145,105 +146,32 @@ int CheckBoosterCollision(Snake *snake, Booster *booster) {
     return 0;
 }
 
-/* ------------------------- DRAWING ELEMENTS -------------------------*/
+/* ------------------------- GAME LOGIC -------------------------*/
 
-// green snake
-void DrawSnake(Snake *snake) {
-    for (int i = 0; i < snake->length; i++) {
-        DrawRectangle(snake->body[i].x * GRID_CELL_SIZE, 
-                      snake->body[i].y * GRID_CELL_SIZE + VERTICAL_OFFSET, 
-                      GRID_CELL_SIZE, GRID_CELL_SIZE, GREEN);
-    }
-}
+// Handle the chosen letter
+void HandleLetterCollision(Snake *snake, Letter *letter) {
+    char chosenLetter = letter->value;
 
-// white walls
-void DrawWalls() {
-    for (int x = 0; x < mapWidth; x++) {
-        if (x >= 0 && x < mapWidth) {
-            DrawRectangle(x * GRID_CELL_SIZE, 0 + VERTICAL_OFFSET, GRID_CELL_SIZE, GRID_CELL_SIZE, RAYWHITE);
-            DrawRectangle(x * GRID_CELL_SIZE, (mapHeight - 1) * GRID_CELL_SIZE + VERTICAL_OFFSET, GRID_CELL_SIZE, GRID_CELL_SIZE, RAYWHITE);
+    // Check if the chosen letter is in the word
+    int found = 0;
+    for (int i = 0; i < currentWordLength; i++) {
+        if (currentWord[i] == chosenLetter && guessedWord[i] == '_') {
+            guessedWord[i] = chosenLetter; // Update guessed word
+            found = 1;
         }
     }
-    for (int y = 0; y < mapHeight; y++) {
-        if (y >= 0 && y < mapHeight) {
-            DrawRectangle(0, y * GRID_CELL_SIZE + VERTICAL_OFFSET, GRID_CELL_SIZE, GRID_CELL_SIZE, RAYWHITE);
-            DrawRectangle((mapWidth - 1) * GRID_CELL_SIZE, y * GRID_CELL_SIZE + VERTICAL_OFFSET, GRID_CELL_SIZE, GRID_CELL_SIZE, RAYWHITE);
+
+    // If the letter was incorrect or already guessed
+    if (!found) {
+        extraLives--;
+        if (extraLives < 0) {
+            extraLives = 0;
         }
     }
+
+    // Generate new letters
+    GenerateLetterChoices();
 }
-
-void DrawGuessedWord() {
-    DrawText(FormatText("Word: %s", guessedWord), 10, 100, 20, YELLOW);
-}
-
-void DrawLetters(Letter *letter1, Letter *letter2) {
-    DrawRectangle(letter1->position.x * GRID_CELL_SIZE,
-                  letter1->position.y * GRID_CELL_SIZE + VERTICAL_OFFSET,
-                  GRID_CELL_SIZE, GRID_CELL_SIZE, GREEN);
-    DrawText(&letter1->value, letter1->position.x * GRID_CELL_SIZE + 5,
-             letter1->position.y * GRID_CELL_SIZE + VERTICAL_OFFSET + 5, 20, WHITE);
-
-    DrawRectangle(letter2->position.x * GRID_CELL_SIZE,
-                  letter2->position.y * GRID_CELL_SIZE + VERTICAL_OFFSET,
-                  GRID_CELL_SIZE, GRID_CELL_SIZE, RED);
-    DrawText(&letter2->value, letter2->position.x * GRID_CELL_SIZE + 5,
-             letter2->position.y * GRID_CELL_SIZE + VERTICAL_OFFSET + 5, 20, WHITE);
-}
-
-void DrawBooster(Booster *booster) {
-    if (booster->isActive) {
-        Color boosterColor;
-        if (booster->type == 0) boosterColor = YELLOW; // speed
-        else if (booster->type == 1) boosterColor = PURPLE; // size reducer
-        else if (booster->type == 2) boosterColor = BLUE; // extra life
-
-        DrawRectangle(booster->position.x * GRID_CELL_SIZE, 
-                      booster->position.y * GRID_CELL_SIZE + VERTICAL_OFFSET, 
-                      GRID_CELL_SIZE, GRID_CELL_SIZE, boosterColor);
-    }
-}
-
-void DrawGameOver(Texture2D lost_image) {
-    float scale = 0.3f; 
-    int scaledWidth = lost_image.width * scale;
-    int scaledHeight = lost_image.height * scale;
-    DrawText("YOU LOST...", 10, 10, 30, RED);
-    DrawText("Press R to restart or ESC to exit.", 10, 40, 20, RAYWHITE);
-    DrawTextureEx(lost_image, (Vector2){10, 70}, 0.0f, scale, WHITE);
-
-
-
-}
-
-void DrawGameWon(int food, Texture2D won_image) {
-    float scale = 0.3f;  
-    int scaledWidth = won_image.width * scale;
-    int scaledHeight = won_image.height * scale;
-    DrawText("YOU WON!", 10, 10, 30, BLUE);
-    DrawText(FormatText("Food eaten: %d", food), 10, 40, 30, BLUE);
-    DrawText("Press R to restart or ESC to exit.", 10, 70, 20, RAYWHITE);
-    DrawTextureEx(won_image, (Vector2){10, 100}, 0.0f, scale, WHITE);
-
-}
-
-void drawMapSizeInfo(Texture2D snake_image) {
-    BeginDrawing();
-    ClearBackground(BLACK);
-
-    float scale = 0.1f;  
-    int scaledWidth = snake_image.width * scale;
-    int scaledHeight = snake_image.height * scale;
-    DrawTextureEx(snake_image, (Vector2){10, 10}, 0.0f, scale, WHITE);
-    
-    DrawText("Use arrow keys to change the map size.", 10, 140, 20, RAYWHITE);
-    DrawText(FormatText("Width: %i", mapWidth), 10, 170, 20, RAYWHITE);
-    DrawText(FormatText("Height: %i", mapHeight), 10, 200, 20, RAYWHITE);
-    DrawText("Press ENTER to confirm.", 10, 230, 20, RAYWHITE);
-
-    EndDrawing();
-}
-
-/* ------------ GAME LOGIC ------------ */
 
 void HandleSizeReducer(Snake *snake) {
     if (snake->length > 1) {
@@ -273,44 +201,120 @@ void HandleCollision(Snake *snake, bool *isGameRunning) {
     }
 }
 
-void HandleLetterCollision(Snake *snake, Letter *letter) {
-    char chosenLetter = letter->value;
-
-    // Check if the chosen letter is in the word
-    int found = 0;
-    for (int i = 0; i < currentWordLength; i++) {
-        if (currentWord[i] == chosenLetter && guessedWord[i] == '_') {
-            guessedWord[i] = chosenLetter; // Update guessed word
-            found = 1;
-        }
-    }
-
-    // If the letter was incorrect or already guessed
-    if (!found) {
-        extraLives--;
-        if (extraLives < 0) {
-            extraLives = 0;
-        }
-    }
-
-    // Check if the word is completed
-    if (strcmp(currentWord, guessedWord) == 0) {
-        snake->length = 0; // Triggers game over condition
-    }
-
-    // Generate new letters
-    GenerateLetterChoices();
-}
-
-void RestartGame(Snake *snake, bool *isGameRunning) {
+void RestartGame(Snake *snake, int *currentWordLength, bool *isGameRunning) {
     free(snake->body);
     snake->length = SNAKE_INITIAL_LENGTH;
     snake->body = (Vector2 *)malloc(snake->length * sizeof(Vector2));
     snake->body[0] = (Vector2){mapWidth / 2, mapHeight / 2};
     snake->direction = (Vector2){1, 0};
 
+    InitWordGame();
+    GenerateLetterChoices();
+    *currentWordLength = 0;
     *isGameRunning = true;
 }
+
+/* ------------------------- DRAWING ELEMENTS -------------------------*/
+
+// green snake
+void DrawSnake(Snake *snake) {
+    for (int i = 0; i < snake->length; i++) {
+        DrawRectangle(snake->body[i].x * GRID_CELL_SIZE, 
+                      snake->body[i].y * GRID_CELL_SIZE + VERTICAL_OFFSET, 
+                      GRID_CELL_SIZE, GRID_CELL_SIZE, GREEN);
+    }
+}
+
+// white walls
+void DrawWalls() {
+    for (int x = 0; x < mapWidth; x++) {
+        if (x >= 0 && x < mapWidth) {
+            DrawRectangle(x * GRID_CELL_SIZE, 0 + VERTICAL_OFFSET, GRID_CELL_SIZE, GRID_CELL_SIZE, RAYWHITE);
+            DrawRectangle(x * GRID_CELL_SIZE, (mapHeight - 1) * GRID_CELL_SIZE + VERTICAL_OFFSET, GRID_CELL_SIZE, GRID_CELL_SIZE, RAYWHITE);
+        }
+    }
+    for (int y = 0; y < mapHeight; y++) {
+        if (y >= 0 && y < mapHeight) {
+            DrawRectangle(0, y * GRID_CELL_SIZE + VERTICAL_OFFSET, GRID_CELL_SIZE, GRID_CELL_SIZE, RAYWHITE);
+            DrawRectangle((mapWidth - 1) * GRID_CELL_SIZE, y * GRID_CELL_SIZE + VERTICAL_OFFSET, GRID_CELL_SIZE, GRID_CELL_SIZE, RAYWHITE);
+        }
+    }
+}
+
+void DrawBooster(Booster *booster) {
+    if (booster->isActive) {
+        Color boosterColor;
+        if (booster->type == 0) boosterColor = YELLOW; // speed
+        else if (booster->type == 1) boosterColor = PURPLE; // size reducer
+        else if (booster->type == 2) boosterColor = BLUE; // extra life
+
+        DrawRectangle(booster->position.x * GRID_CELL_SIZE, 
+                      booster->position.y * GRID_CELL_SIZE + VERTICAL_OFFSET, 
+                      GRID_CELL_SIZE, GRID_CELL_SIZE, boosterColor);
+    }
+}
+
+// Draw the guessed word on the screen
+void DrawGuessedWord() {
+    DrawText(FormatText("Word: %s", guessedWord), 10, 40, 20, YELLOW);
+}
+
+// Draw the letters on the grid
+void DrawLetters(Letter *letter1, Letter *letter2) {
+    DrawRectangle(letter1->position.x * GRID_CELL_SIZE,
+                  letter1->position.y * GRID_CELL_SIZE + VERTICAL_OFFSET,
+                  GRID_CELL_SIZE, GRID_CELL_SIZE, RED);
+    DrawText(&letter1->value, letter1->position.x * GRID_CELL_SIZE + 5,
+             letter1->position.y * GRID_CELL_SIZE + VERTICAL_OFFSET -2, 20, WHITE);
+
+    DrawRectangle(letter2->position.x * GRID_CELL_SIZE,
+                  letter2->position.y * GRID_CELL_SIZE + VERTICAL_OFFSET,
+                  GRID_CELL_SIZE, GRID_CELL_SIZE, RED);
+    DrawText(&letter2->value, letter2->position.x * GRID_CELL_SIZE + 5,
+             letter2->position.y * GRID_CELL_SIZE + VERTICAL_OFFSET - 2, 20, WHITE);
+}
+
+void DrawGameOver(Texture2D lost_image) {
+    float scale = 0.3f; 
+    int scaledWidth = lost_image.width * scale;
+    int scaledHeight = lost_image.height * scale;
+    DrawText("YOU LOST...", 10, 10, 30, RED);
+    DrawText("Press R to restart or ESC to exit.", 10, 40, 20, RAYWHITE);
+    DrawTextureEx(lost_image, (Vector2){10, 70}, 0.0f, scale, WHITE);
+
+
+
+}
+
+void DrawGameWon(char *currentWord, Texture2D won_image) {
+    float scale = 0.3f;  
+    int scaledWidth = won_image.width * scale;
+    int scaledHeight = won_image.height * scale;
+    DrawText("YOU WON!", 10, 10, 30, BLUE);
+    DrawText(FormatText("Word found: %s", currentWord), 10, 40, 25, BLUE);
+    DrawText("Press R to restart or ESC to exit.", 10, 70, 20, RAYWHITE);
+    DrawTextureEx(won_image, (Vector2){10, 100}, 0.0f, scale, WHITE);
+
+}
+
+void drawMapSizeInfo(Texture2D snake_image) {
+    BeginDrawing();
+    ClearBackground(BLACK);
+
+    float scale = 0.1f;  
+    int scaledWidth = snake_image.width * scale;
+    int scaledHeight = snake_image.height * scale;
+    DrawTextureEx(snake_image, (Vector2){10, 10}, 0.0f, scale, WHITE);
+    
+    DrawText("Use arrow keys to change the map size.", 10, 140, 20, RAYWHITE);
+    DrawText(FormatText("Width: %i", mapWidth), 10, 170, 20, RAYWHITE);
+    DrawText(FormatText("Height: %i", mapHeight), 10, 200, 20, RAYWHITE);
+    DrawText("Press ENTER to confirm.", 10, 230, 20, RAYWHITE);
+
+    EndDrawing();
+}
+
+/* ------------------------- MAIN GAME -------------------------*/
 
 int main(void) {
     InitWindow(800, 600, "Snake de la Hess");
@@ -328,10 +332,9 @@ int main(void) {
 
     float lastMoveTime = 0.0f;  // Timer for snake movement
     int foodEaten = 0;
-    bool isGameRunning = true;
-
     InitWordGame();
     GenerateLetterChoices();
+    bool isGameRunning = true;
 
     // map size customization screen
     while (!WindowShouldClose()) {
@@ -360,9 +363,8 @@ int main(void) {
     Snake snake;
     InitSnake(&snake, mapWidth, mapHeight);
 
-
     Booster currentBooster;
-    InitBooster(&currentBooster, rand()%3);
+    InitBooster(&currentBooster, 2);
     float boosterSpawnTimer = 0.0f; // this will be used to spawn new boosters after 10 seconds (everytime player eats one)
 
     // game start
@@ -374,6 +376,7 @@ int main(void) {
         UpdateMusicStream(music);
 
         if (!isGameRunning) {
+
             // if game is lost or won, stop music
             StopMusicStream(music);
 
@@ -382,14 +385,14 @@ int main(void) {
                 break;
             }
             if (IsKeyPressed(KEY_R)) {
-                RestartGame(&snake, &isGameRunning);
+                RestartGame(&snake, &currentWordLength, &isGameRunning);
                 InitWordGame();
                 GenerateLetterChoices();
             }
             BeginDrawing();
             ClearBackground(BLACK);
             if (strcmp(currentWord, guessedWord) == 0) {
-                DrawGameWon(currentWordLength, won_image);
+                DrawGameWon(currentWord, won_image);
             } else {
                 DrawGameOver(lost_image);
             }
@@ -403,6 +406,19 @@ int main(void) {
             lastMoveTime = currentTime;
         }
 
+        // Handle letter collisions
+        if (CheckLetterCollision(&snake, &letter1)) {
+            HandleLetterCollision(&snake, &letter1);
+            if (strcmp(currentWord, guessedWord) == 0) {
+                isGameRunning = false;
+            }
+        } else if (CheckLetterCollision(&snake, &letter2)) {
+            HandleLetterCollision(&snake, &letter2);
+            if (strcmp(currentWord, guessedWord) == 0) {
+                isGameRunning = false;
+            }
+        }
+
         // snake movement with WASD
         if (IsKeyPressed(KEY_W)) snake.direction = (Vector2){0, -1}; // up
         if (IsKeyPressed(KEY_A)) snake.direction = (Vector2){-1, 0}; // left
@@ -410,24 +426,6 @@ int main(void) {
         if (IsKeyPressed(KEY_D)) snake.direction = (Vector2){1, 0}; // right
 
         HandleCollision(&snake, &isGameRunning);
-
-/*
-        if (CheckFoodCollision(&snake, &food)) {
-            snake.length++;
-            snake.body = (Vector2 *)realloc(snake.body, snake.length * sizeof(Vector2));
-            foodEaten++;
-
-            if (foodEaten >= winCondition) {
-                isGameRunning = false;
-            }
-
-        }*/
-
-        if (CheckLetterCollision(&snake, &letter1)) {
-            HandleLetterCollision(&snake, &letter1);
-        } else if (CheckLetterCollision(&snake, &letter2)) {
-            HandleLetterCollision(&snake, &letter2);
-        }
 
         float deltaTime = GetFrameTime();
         boosterSpawnTimer += deltaTime;
@@ -465,14 +463,12 @@ int main(void) {
         DrawWalls();
 
         DrawSnake(&snake);
-
         DrawLetters(&letter1, &letter2);
         DrawGuessedWord();
 
         DrawBooster(&currentBooster);
 
-        DrawText(FormatText("%s", *currentWord), 10, 10, 20, RAYWHITE);
-        DrawText(FormatText("Lives: %d", extraLives+1), 10, 40, 20, BLUE);
+        DrawText(FormatText("Lives: %d", extraLives+1), 10, 10, 20, RAYWHITE);
         
 
         // Write Speed booster text if the user has ate it
@@ -481,10 +477,7 @@ int main(void) {
         }
 
         EndDrawing();
-
-        if (strcmp(currentWord, guessedWord) == 0) {
-            isGameRunning = false;
-        }
+        
     }
 
     //unloading pics
@@ -493,12 +486,12 @@ int main(void) {
     UnloadTexture(snake_image);
     UnloadTexture(food_image);
 
-    // unloading music
     UnloadMusicStream(music);
     CloseAudioDevice();
 
+    // De-Initialization
     free(snake.body);
-    CloseWindow();
+    CloseWindow(); // Close window and OpenGL context
 
     return 0;
 }
