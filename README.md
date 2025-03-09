@@ -1,6 +1,6 @@
 <h1>THE HANGED SNAKE GAME</h1>
 - Developed by Camille Nguyen : CCU Project Design course
-<br/>
+<br/><br/>
 <img src="assets/board.png" alt="Board game">
 
 Basics of the game:
