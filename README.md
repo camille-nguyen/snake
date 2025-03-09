@@ -11,9 +11,18 @@ There are also boosters with different effects to help you in your journey.
 However, be careful of crashing into the walls or into yourself (the snake can feel pain, too)...
 
 <h2>How to run this game:</h2>
+
+<h3>If the snake.exe file exists:</h3>
 <pre>
 From the root folder:
+$ ./snake
+</pre>
+
+<h3>If the snake.exec file does not exist:</h3>
+<pre>
+From the root folder:
+$ mkdir build
 $ cd build
 $ cmake ..
-$ make
+$ cmake --build . || $ make
 </pre>
