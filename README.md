@@ -1,5 +1,5 @@
 <h1>THE HANGED SNAKE GAME</h1>
-- Developed by Camille Nguyen
+- Developed by Camille Nguyen : CCU Project Design course
 
 Principles of the game:
 In this game, you will be able to play as a snake wandering the confines of a small room. 
